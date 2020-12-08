@@ -64,7 +64,8 @@ int main(int argc, char **argv){
     for (int i=0;i<100;i++) signal(i,SIG_IGN);
     // 设置信号,在shell状态下可用 "kill + 进程号" 正常终止些进程
     // 但请不要用 "kill -9 +进程号" 强行终止
-    signal(SIGINT,mainExit); signal(SIGTERM,mainExit);
+    signal(SIGINT,mainExit); 
+    signal(SIGTERM,mainExit);
 
     if (log_file.openLog(log_path, "a+")==false) { 
         printf("logfile.Open(%s) failed.\n", log_path); 

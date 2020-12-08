@@ -4,15 +4,12 @@ TcpServer::TcpServer()
 {
   m_listenfd=-1;
   m_connectfd=-1;
-  m_sock_len=0;
+  m_addr_len=0;
   m_istimeout=false;
 }
 
 bool TcpServer::initServer(const unsigned int port){
-  if (m_listenfd > 0) { 
-    close(m_listenfd); 
-    m_listenfd=-1; 
-  }
+  closeListen();
 
   m_listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -35,7 +32,7 @@ bool TcpServer::initServer(const unsigned int port){
     return false;
   }
 
-  m_sock_len = sizeof(struct sockaddr_in);
+  m_addr_len = sizeof(struct sockaddr_in);
 
   return true;
 }
@@ -44,7 +41,7 @@ bool TcpServer::tcpAccept(){
   if (m_listenfd == -1) return false;
 
   struct sockaddr_in clientaddr;
-  if ((m_connectfd=accept(m_listenfd, (struct sockaddr*)&clientaddr, (socklen_t*)&m_sock_len)) < 0)
+  if ((m_connectfd=accept(m_listenfd, (struct sockaddr*)&clientaddr, (socklen_t*)&m_addr_len)) < 0)
       return false;
 
   m_clientaddrs.insert(make_pair(m_connectfd, clientaddr));

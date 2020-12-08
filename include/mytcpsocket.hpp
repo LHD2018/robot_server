@@ -1,9 +1,9 @@
-#ifndef MYSOCKET_HPP
-#define MYSOCKET_HPP
+#ifndef MYTCPSOCKET_HPP
+#define MYTCPSOCKET_HPP
 
 #include "common.h"
 
-class MySocket{
+class MyTcpSocket{
 protected:
   bool m_istimeout;
 
@@ -12,6 +12,7 @@ public:
   // 接收socket的对端发送过来的数据。
   // sockfd：可用的socket连接。
   // buffer：接收数据缓冲区的地址。
+  // buf_len 传入buffe长度地址，如果不需要填NULL
   // s_timeout：接收等待超时的时间，单位：秒，缺省值是0-无限等待。
   // 返回值：true-成功；false-失败，失败有两种情况：1）等待超时；2）socket连接已不可用。
   bool tcpRecv(const int sockfd, char *buffer, int *buf_len, const int s_timeout=0){
@@ -33,19 +34,24 @@ public:
 
       int ret;
       if ( (ret = select(sockfd+1, &tmpfd, 0, 0, &timeout)) <= 0 ){
-        if (ret==0) m_istimeout = true;
+        if (ret==0) {
+          m_istimeout = true;
+        }
         return false;
       }
     }
-
-    (*buf_len) = 0;
+    int t_buf_len = 0;
+    if(buf_len == NULL){
+      buf_len = &t_buf_len;
+    }
+    
 
     // 读取报头（报文内容大小）
-    if (tcpRead(sockfd, (char*)buf_len, 4) == false) return false;
+    if (tcpRead(sockfd,(char*)buf_len,4) == false) return false;
 
     (*buf_len) = ntohl(*buf_len);  // 把网络字节序转换为主机字节序。
+    if((*buf_len) > 1024) return false;  // 防止越界
 
-    if((*buf_len) > 1024) return false;
     // 读取报文内容
     if (tcpRead(sockfd, buffer, *buf_len) == false) return false;
 
@@ -55,7 +61,7 @@ public:
   // 向socket的对端发送数据。
   // sockfd：可用的socket连接。
   // buffer：待发送数据缓冲区的地址。
-  // buf_len：待发送数据的字节数，如果发送的是ascii字符串，buf_len取0，如果是二进制流数据，buf_len为二进制数据块的大小。
+  // buf_len：待发送数据的字节数，如果发送的是ascii字符串，buf_len取0，如果是二进制流数据，ibuflen为二进制数据块的大小。
   // 返回值：true-成功；false-失败，如果失败，表示socket连接已不可用。
   bool tcpSend(const int sockfd, const char *buffer, const int buf_len=0){
     if (sockfd == -1) return false;
@@ -81,10 +87,10 @@ public:
     int post_len=0;
 
     // 如果长度为0，就采用字符串的长度
-    if (buf_len==0) post_len = strlen(buffer);
-    else post_len = buf_len;
+    if (buf_len==0) post_len=strlen(buffer);
+    else post_len=buf_len;
 
-    int i_post_len = htonl(post_len);  // 转换为网络字节序。
+    int i_post_len=htonl(post_len);  // 转换为网络字节序。
 
     char send_buffer[post_len+4];
     memset(send_buffer, 0, post_len+4);
