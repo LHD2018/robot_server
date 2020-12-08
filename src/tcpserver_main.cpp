@@ -3,8 +3,6 @@
 
 // 控制机器人的参数
 struct ControlParams{
-    bool isupdate;
-    int direction;
     double right_front_spaeed;
     double left_front_speed;
     double left_back_speed;
@@ -14,7 +12,6 @@ struct ControlParams{
 
 // 机器人的当前状态参数
 struct StatusParams{
-    bool isupdate;
     int gps_data;
     double v_speed;
     double w_speed;
@@ -148,7 +145,10 @@ void mainExit(int sig){
     server.closeListen();
 
   // 取消全部的线程。
-  for (int i=0; i<pth_ids.size(); i++) pthread_cancel(pth_ids[i]);
+  for (int i=0; i<pth_ids.size(); i++) {
+        pthread_cancel(pth_ids[i]);
+
+  }
 
   exit(0);
 }
@@ -169,11 +169,8 @@ void pthServerExit(void *arg){
 
 bool processRobot(int clientfd, const char *recv_buffer){
 
-    StatusParams temp_params;
-    memcpy(&temp_params, recv_buffer, sizeof(temp_params));
-    if(temp_params.isupdate){
-        memcpy(&s_params, recv_buffer, sizeof(s_params));
-    }
+     memcpy(&s_params, recv_buffer, sizeof(s_params));
+
     // cout << "GPS:" << s_params.gps_data << "\tv_speed:" << s_params.v_speed << endl; 
     if(server.tcpSend(clientfd, (char*)&c_params, sizeof(c_params)) == false) return false;
 
@@ -182,11 +179,8 @@ bool processRobot(int clientfd, const char *recv_buffer){
 
 bool processController(int clientfd, const char *recv_buffer){
 
-    ControlParams temp_params;
-    memcpy(&temp_params, recv_buffer, sizeof(temp_params));
-    if(temp_params.isupdate){
-        memcpy(&c_params, recv_buffer, sizeof(c_params));
-    }
+    memcpy(&c_params, recv_buffer, sizeof(c_params));
+    cout << "right back:" << c_params.right_back_speed << endl;
     if(server.tcpSend(clientfd, (char*)&s_params, sizeof(s_params)) == false) return false;
     return true;
 }
