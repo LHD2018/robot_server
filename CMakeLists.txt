@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD "11")
 include_directories("./include")
 
 add_executable(tcp_server "./src/tcpserver_main.cpp" "./src/tcpserver.cpp")
-add_executable(udp_serve "./src/udpserver_main.cpp" "./src/udpserver.cpp")
 
 find_package(Threads REQUIRED)
 
