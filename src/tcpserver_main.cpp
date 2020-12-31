@@ -3,18 +3,19 @@
 
 // 控制机器人的参数
 struct ControlParams{
-    double right_front_spaeed;
-    double left_front_speed;
-    double left_back_speed;
-    double right_back_speed;
+    int camera_tag;
+	double x_speed;
+	double y_speed;
+	double w_speed;
 
 };
 
 // 机器人的当前状态参数
 struct StatusParams{
-    int gps_data;
-    double v_speed;
-    double w_speed;
+    bool local_control;
+	int GPS_data;
+	double v_speed;
+	double w_speed;
 };
 
 
@@ -180,7 +181,7 @@ bool processRobot(int clientfd, const char *recv_buffer){
 bool processController(int clientfd, const char *recv_buffer){
 
     memcpy(&c_params, recv_buffer, sizeof(c_params));
-    cout << "right back:" << c_params.right_back_speed << endl;
+    cout << "x_speed:" << c_params.x_speed << endl;
     if(server.tcpSend(clientfd, (char*)&s_params, sizeof(s_params)) == false) return false;
     return true;
 }
