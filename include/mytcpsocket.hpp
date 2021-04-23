@@ -31,7 +31,7 @@ public:
       timeout.tv_usec = 0;
 
       m_istimeout = false;
-
+      
       int ret;
       if ( (ret = select(sockfd+1, &tmpfd, 0, 0, &timeout)) <= 0 ){
         if (ret==0) {
@@ -40,18 +40,18 @@ public:
         return false;
       }
     }
+    
     int t_buf_len = 0;
     if(buf_len == NULL){
       buf_len = &t_buf_len;
     }
     
-
     // 读取报头（报文内容大小）
     if (tcpRead(sockfd,(char*)buf_len,4) == false) return false;
-
+    
     (*buf_len) = ntohl(*buf_len);  // 把网络字节序转换为主机字节序。
     if((*buf_len) > 1024) return false;  // 防止越界
-
+    
     // 读取报文内容
     if (tcpRead(sockfd, buffer, *buf_len) == false) return false;
 

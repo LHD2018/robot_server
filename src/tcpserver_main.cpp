@@ -3,19 +3,31 @@
 
 // 控制机器人的参数
 struct ControlParams{
+    bool type_flag;
     int camera_tag;
-	double x_speed;
-	double y_speed;
-	double w_speed;
+    int robot_model;
+    int robot_gear;
+	float x_speed;
+	float y_speed;
+	float w_speed;
 
 };
 
 // 机器人的当前状态参数
 struct StatusParams{
-    bool local_control;
-	int GPS_data;
-	double v_speed;
-	double w_speed;
+    bool type_flag;
+    int robot_state;
+	struct {
+        double lon;
+        double lat;
+    } gps_data;
+};
+
+union Params{
+
+    bool type_flag;
+    ControlParams c_p;
+    StatusParams s_p;
 };
 
 
@@ -27,15 +39,18 @@ void mainExit(int sig);
 void pthServerExit(void *arg);
 
 // 机器人通信处理
-bool processRobot(int clientfd, const char *recv_buffer);
+bool processRobot(int clientfd);
 // 控制端通信处理
-bool processController(int clientfd, const char *recv_buffer);
+bool processController(int clientfd);
 
 // 服务端
 TcpServer server;
 
 // 程序日志
 LogFile log_file;
+
+// 联合体参数
+Params params;
 
 // 控制参数
 ControlParams c_params;
@@ -53,9 +68,9 @@ const char* log_path = "/var/log/sockets/robot_server/server.log";
 
 int main(int argc, char **argv){
 
-    memset(&c_params, 0, sizeof(c_params));
-    memset(&s_params, 0, sizeof(s_params));
-
+    memset(&c_params, 0, sizeof(ControlParams));
+    memset(&s_params, 0, sizeof(StatusParams));
+    memset(&params, 0, sizeof(Params));
     // 初始化锁
     pthread_mutex_init(&mutex, 0);
     // 关闭全部的信号
@@ -105,23 +120,30 @@ void *pthServer(void *arg){
     char recv_buffer[1024];
     
     while (1){
+       
         pthread_mutex_lock(&mutex);
         memset(recv_buffer, 0, sizeof(recv_buffer));
         if(server.tcpRecv(clientfd, recv_buffer, &buf_len, 50) == false){
+            log_file.writeLog("接收数据失败！！！\n");
             pthread_mutex_unlock(&mutex);
             break;
         }
-        // 这里的客户端类型判断其实有问题，因为字节对齐的缘故，可能出现两个类型客户端报文大小相同，但暂时够用，后面有需要再引入更准确的判断机制
-        if(buf_len == sizeof(s_params)){
-            if(processRobot(clientfd, recv_buffer) == false){
+         memcpy(&params, recv_buffer, buf_len);
+        
+        if(params.type_flag && (buf_len == sizeof(ControlParams))){
+            if(processController(clientfd) == false) {
+                log_file.writeLog("发送数据给远程端失败！！！\n");
                 pthread_mutex_unlock(&mutex);
                 break;
             }
-        }else if(buf_len == sizeof(c_params)){
-            if(processController(clientfd, recv_buffer) == false) {
+            
+        }else if(!params.type_flag && (buf_len == sizeof(StatusParams))){
+            if(processRobot(clientfd) == false){
+                log_file.writeLog("发送数据给机器人失败！！！\n");
                 pthread_mutex_unlock(&mutex);
                 break;
             }
+            
         }else{
             log_file.writeLog("非法报文！！！\n");
             pthread_mutex_unlock(&mutex);
@@ -168,20 +190,24 @@ void pthServerExit(void *arg){
 }
 
 
-bool processRobot(int clientfd, const char *recv_buffer){
+bool processRobot(int clientfd){
 
-     memcpy(&s_params, recv_buffer, sizeof(s_params));
+     memcpy(&s_params, &params.s_p, sizeof(StatusParams));
 
-    // cout << "GPS:" << s_params.gps_data << "\tv_speed:" << s_params.v_speed << endl; 
+    cout << "GPS:" << s_params.gps_data.lon << endl; 
     if(server.tcpSend(clientfd, (char*)&c_params, sizeof(c_params)) == false) return false;
 
     return true;
 }
 
-bool processController(int clientfd, const char *recv_buffer){
-
-    memcpy(&c_params, recv_buffer, sizeof(c_params));
+bool processController(int clientfd){
+   
+    memcpy(&c_params, &params.c_p, sizeof(ControlParams));
     cout << "x_speed:" << c_params.x_speed << endl;
+    // gps test
+    s_params.gps_data.lon = 117.29335549;
+    s_params.gps_data.lat = 31.84891312;
+
     if(server.tcpSend(clientfd, (char*)&s_params, sizeof(s_params)) == false) return false;
     return true;
 }
