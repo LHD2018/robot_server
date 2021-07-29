@@ -1,26 +1,29 @@
+/*
+ * 主程序
+ */
+
 #include "tcpserver.h"
 #include "myutil.hpp"
 
 // 控制机器人的参数
 struct ControlParams{
-    bool type_flag;
-    int camera_tag;
-    int robot_model;
-    int robot_gear;
-	float x_speed;
-	float y_speed;
-	float w_speed;
+    bool type_flag;     // 客户端标识符（true为控制器发送的ControlParams. false为机器人发送的StateParams）
+    int camera_tag;     // 相机流标识符（-1为后置相机，0为不传输相机流，1为前置相机）
+    int robot_model;    // 机器人控制模式（0为正常模式，3为单独轮转）
+    float x_speed;      // x反向速度
+    float y_speed;      // y方向速度
+    float w_speed;      // w速度
 
 };
 
 // 机器人的当前状态参数
 struct StatusParams{
-    bool type_flag;
-    int robot_state;
+    bool type_flag;     // 客户端标识符（true为控制器发送的ControlParams. false为机器人发送的StateParams）
+    int robot_state;    // 机器人状态（0为离线，1为没有控制器，2为本地控制， 3为远程控制）
 	struct {
         double lon;
         double lat;
-    } gps_data;
+    } gps_data;         // GPS信息（lon:经度， lat：纬度）
 };
 
 union Params{
@@ -124,6 +127,7 @@ void *pthServer(void *arg){
         pthread_mutex_lock(&mutex);
         memset(recv_buffer, 0, sizeof(recv_buffer));
         if(server.tcpRecv(clientfd, recv_buffer, &buf_len, 50) == false){
+            memset(&c_params, 0, sizeof(c_params));
             log_file.writeLog("接收数据失败！！！\n");
             pthread_mutex_unlock(&mutex);
             break;
@@ -153,8 +157,8 @@ void *pthServer(void *arg){
         usleep(100);
     }
     pthread_mutex_lock(&mutex);
-    if(buf_len == sizeof(s_params)) memset(&s_params, 0, sizeof(s_params));
-    else if(buf_len == sizeof(c_params)) memset(&c_params, 0, sizeof(c_params));
+    memset(&s_params, 0, sizeof(s_params));
+    memset(&c_params, 0, sizeof(c_params));
     pthread_mutex_unlock(&mutex);
 
     log_file.writeLog("客户端【%s】断开连接（当前客户端数：%d）\n", server.getClientIP(clientfd), server.m_clientaddrs.size()-1);
@@ -194,7 +198,7 @@ bool processRobot(int clientfd){
 
      memcpy(&s_params, &params.s_p, sizeof(StatusParams));
 
-    cout << "GPS:" << s_params.gps_data.lon << endl; 
+    //cout << "GPS::lat:" << s_params.gps_data.lat << endl; 
     if(server.tcpSend(clientfd, (char*)&c_params, sizeof(c_params)) == false) return false;
 
     return true;
@@ -203,10 +207,12 @@ bool processRobot(int clientfd){
 bool processController(int clientfd){
    
     memcpy(&c_params, &params.c_p, sizeof(ControlParams));
-    cout << "x_speed:" << c_params.x_speed << endl;
-    // gps test
-    s_params.gps_data.lon = 117.29335549;
-    s_params.gps_data.lat = 31.84891312;
+    //cout << "x_speed:" << c_params.x_speed << "y_speed:" << c_params.y_speed << "w_speed:" << c_params.w_speed<< endl;
+    
+    // if(s_params.gps_data.lat == 0.0){
+    //     s_params.gps_data.lon = 11717.598516;
+    //     s_params.gps_data.lat = 3150.940886;
+    // }
 
     if(server.tcpSend(clientfd, (char*)&s_params, sizeof(s_params)) == false) return false;
     return true;
